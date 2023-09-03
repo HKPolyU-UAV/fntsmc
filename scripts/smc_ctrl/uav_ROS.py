@@ -1,8 +1,8 @@
 import numpy as np
 import os, sys
 
-sys.path.append(os.getcwd() + '/src/control/scripts/')
-sys.path.append(os.getcwd() + '/src/control/scripts/smc_ctrl/')
+sys.path.append(os.getcwd() + '/src/acc_2024_ros/scripts/')
+sys.path.append(os.getcwd() + '/src/acc_2024_ros/scripts/smc_ctrl/')
 
 from utils import *
 

@@ -69,9 +69,17 @@ def plot_psi():
 
 def plot_throttle():
     plt.figure()
-    plt.plot(time, in_control, 'red')  # 油门
+    plt.plot(time, in_control_throttle, 'red')  # 归一化油门
+    plt.ylim((0.1, 0.9))
+    plt.yticks(np.arange(0.1, 0.9, 0.1))
     plt.grid(True)
     plt.title('throttle')
+
+    plt.figure()
+    plt.plot(time, in_control, 'red')  # 油门
+    plt.grid(True)
+    plt.title('thrust')
+
 
 def plot_obs():
     plt.figure()
@@ -100,14 +108,12 @@ def plot_obs():
 if __name__ == '__main__':
     """
     Data formation:
-        control.csv:    t throttle Tx Ty Tz
-        observe.csv:    t in_01 in_02 in_03 in_04 in_01_obs in_02_obs in_03_obs in_04_obs
+        control.csv:    t throttle
+        observe.csv:    t dx_obs dy_obs dz_obs
         ref_cmd.csv:    t rx ry rz r_phi(roll) r_theta(pitch) r_psi(yaw)
         uav_state.csv:  t x y z vx vy vz phi theta psi p q r
     """
-    # path = './datasave/'
-    path = os.getcwd() + '/src/control/scripts/datasave/'
-    # path = ''
+    path = os.path.dirname(__file__) + '/'
     controlData = pd.read_csv(path + 'control.csv', header=0).to_numpy()
     observeData = pd.read_csv(path + 'observe.csv', header=0).to_numpy()
     ref_cmdData = pd.read_csv(path + 'ref_cmd.csv', header=0).to_numpy()
@@ -117,6 +123,7 @@ if __name__ == '__main__':
     time = controlData[0: L - 2, 0]
 
     in_control = controlData[0: L - 2, 1]
+    in_control_throttle = controlData[0: L - 2, 2]
 
     delta_obs = observeData[0: L - 2, 1:4]
 

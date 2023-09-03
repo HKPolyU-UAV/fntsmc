@@ -2,7 +2,13 @@ import numpy as np
 
 
 class neso_in:
-    def __init__(self, l1: float, l2: float, l3: float, r: float, k1: float, k2: float):
+    def __init__(self,
+                 l1: float = 3.,
+                 l2: float = 3.,
+                 l3: float = 1.,
+                 r: float = 5.,
+                 k1: float = 0.7,
+                 k2: float = 0.001):
         self.l1 = l1
         self.l2 = l2
         self.l3 = l3
@@ -50,7 +56,13 @@ class neso_in:
 
 
 class neso_out:
-    def __init__(self, l1: np.ndarray, l2: np.ndarray, l3: np.ndarray, r: np.ndarray, k1: np.ndarray, k2: np.ndarray):
+    def __init__(self,
+                 l1: np.ndarray = np.array([3., 3.]),
+                 l2: np.ndarray = np.array([3., 3.]),
+                 l3: np.ndarray = np.array([1., 1.]),
+                 r: np.ndarray = np.array([20., 20.]),
+                 k1: np.ndarray = np.array([0.7, 0.7]),
+                 k2: np.ndarray = np.array([0.001, 0.001])):
         self.l1 = l1
         self.l2 = l2
         self.l3 = l3

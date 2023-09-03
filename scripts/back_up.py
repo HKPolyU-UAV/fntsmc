@@ -12,17 +12,10 @@ import tf
 from tf.transformations import quaternion_matrix
 
 from smc_ctrl.uav_ROS import UAV_ROS
-from smc_ctrl.controller import ctrl_in, ctrl_out, data_collector
+from smc_ctrl.controller import ctrl_out, data_collector, ctrl_in2
 from smc_ctrl.NESO import neso_in, neso_out
 from smc_ctrl.ref_cmd import *
 from smc_ctrl.utils import *
-
-current_state = State()
-pose = PoseStamped()  # position publish
-uav_state = PoseStamped()  # position subscribe
-uav_odom = Odometry()
-ctrl_cmd = AttitudeTarget()
-voltage = 11.4
 
 
 def state_cb(msg):
@@ -111,6 +104,15 @@ def thrust_2_throttle(thrust: float):
 	return _throttle
 
 
+current_state = State()
+pose = PoseStamped()  # position publish
+uav_state = PoseStamped()  # position subscribe
+uav_odom = Odometry()
+ctrl_cmd = AttitudeTarget()
+voltage = 11.4
+global_flag = 0
+
+
 if __name__ == "__main__":
 	rospy.init_node("offb_node_py")  # 初始化一个节点
 
@@ -182,7 +184,6 @@ if __name__ == "__main__":
 		rate.sleep()
 
 	t_now = rospy.Time.now()
-	# print('YYF')
 
 	while rospy.Time.now() - t_now < rospy.Duration(int(1.0)):
 		local_pos_pub.publish(pose)
@@ -190,10 +191,10 @@ if __name__ == "__main__":
 
 	print('Start......')
 
-	ref_amplitude = np.array([1.5, 1.5, 0.5, 0])  # xd yd zd psid 振幅
-	# ref_amplitude = np.array([0, 0, 0., 0])  # xd yd zd psid 振幅
+	# ref_amplitude = np.array([1.5, 1.5, 0.5, 0])  # xd yd zd psid 振幅
+	ref_amplitude = np.array([0, 0, 0.5, 0])  # xd yd zd psid 振幅
 	ref_period = np.array([5, 5, 5, 10])  # xd yd zd psid 周期
-	ref_bias_a = np.array([0, 0, 1, 0])  # xd yd zd psid 幅值偏移
+	ref_bias_a = np.array([1, 1, 1, 0])  # xd yd zd psid 幅值偏移
 	ref_bias_phase = np.array([np.pi / 2, 0, 0, 0])  # xd yd zd psid 相位偏移
 
 	'''無人機先定點'''
@@ -202,9 +203,9 @@ if __name__ == "__main__":
 	cnt = 0
 	ref, _, _, _ = ref_uav(0., ref_amplitude, ref_period, ref_bias_a, ref_bias_phase)
 	while (not READY) and (not rospy.is_shutdown()):
-		pose.pose.position.x = ref[0]
-		pose.pose.position.y = ref[1]
-		pose.pose.position.z = ref[2]
+		pose.pose.position.x = 0  # ref[0]
+		pose.pose.position.y = 0  # ref[1]
+		pose.pose.position.z = 1  # ref[2]
 		uav_pos = uav_odom_2_uav_state(uav_odom)[0: 3]
 		if np.linalg.norm(ref[0: 3] - uav_pos) < 0.2:
 			cnt += 1
@@ -220,17 +221,25 @@ if __name__ == "__main__":
 
 	'''initialization of the controller'''
 	t0 = rospy.Time.now().to_sec()  # 这是整体仿真的开始时刻
-	uav_ros = UAV_ROS(m=0.44, g=9.8, kt=1e-3, dt=1 / frequency)  # 作为虚拟的模型类，不参与运算，只是提供控制器中必要的数据
+	uav_ros = UAV_ROS(m=0.797, g=9.8, kt=1e-3, dt=1 / frequency)  # 作为虚拟的模型类，不参与运算，只是提供控制器中必要的数据
 
 	ctrl_out = ctrl_out(k1=np.array([0.6, 0.6]),  # 1.2, 0.8
 						k2=np.array([0.3, 0.3]),  # 0.4, 0.6
 						k3=np.array([0.05, 0.05]),
 						alpha=np.array([1.2, 1.2]),
-						beta=np.array([0.7, 0.7]),   # 0.3, 0.3 從0.3改成0.7之後，效果明顯提升
+						beta=np.array([0.7, 0.7]),  # 0.3, 0.3 從0.3改成0.7之後，效果明顯提升
 						gamma=np.array([0.2, 0.2]),
-                 		lmd=np.array([1.0, 1.0]),	# 2, 2
-                 		dt=uav_ros.dt)  # 外环控制器 x y
-	ctrl_in = ctrl_in(thrust=uav_ros.m * uav_ros.g, dt=uav_ros.dt, c=3., lmd=5., k0=20.)  # 内环控制器 z psi
+						lmd=np.array([1.0, 1.0]),  # 2, 2
+						dt=uav_ros.dt)  # 外环控制器 x y
+
+	ctrl_in = ctrl_in2(ctrl0=uav_ros.m * uav_ros.g,
+					   k1=0.4,
+					   k2=0.4,
+					   alpha=1.2,
+					   beta=0.7,
+					   gamma=0.2,
+					   lmd=2.0,
+					   dt=1 / frequency)
 
 	obs_out = neso_out(l1=np.array([3., 3.]),
 					   l2=np.array([3., 3.]),
@@ -268,17 +277,17 @@ if __name__ == "__main__":
 
 	while not rospy.is_shutdown():
 		t_now = round(rospy.Time.now().to_sec() - t0, 4)
-		if uav_ros.n % 1 == 0:
+		if uav_ros.n % 1000 == 0:
 			print('time: ', t_now)
 
 		'''1. generate reference command and uncertainty'''
 		ref, dot_ref, dot2_ref, dot3_ref = ref_uav(uav_ros.time, ref_amplitude, ref_period, ref_bias_a, ref_bias_phase)  # 整体参考信号 xd yd zd psid
 
 		'''2. generate outer-loop reference signal 'eta_d' and its 1st, 2nd, and 3rd-order derivatives'''
-		eta_d = np.array([ref[0], ref[1]])					# 外环参考
-		dot_eta_d = np.array([dot_ref[0], dot_ref[1]])  	# 外环参考一阶导
-		dot2_eta_d = np.array([dot2_ref[0], dot2_ref[1]])	# 外环参考二阶导
-		dot3_eta_d = np.array([dot3_ref[0], dot3_ref[1]])	# 外环参考三阶导
+		eta_d = np.array([ref[0], ref[1]])  # 外环参考
+		dot_eta_d = np.array([dot_ref[0], dot_ref[1]])  # 外环参考一阶导
+		dot2_eta_d = np.array([dot2_ref[0], dot2_ref[1]])  # 外环参考二阶导
+		dot3_eta_d = np.array([dot3_ref[0], dot3_ref[1]])  # 外环参考三阶导
 
 		'''3. generate inner-loop reference signal 'rho_d' and its 1st and 2nd-order derivatives'''
 		phi_d_old = phi_d
@@ -309,16 +318,25 @@ if __name__ == "__main__":
 				uav_ros.f1_rho1() * (uav_ros.f2_rho2() + uav_ros.h_rho1() * ctrl_in.control) +
 				delta_inner_obs)
 
-		'''5. compute the derivative of the inner-loop controller'''
-		ctrl_in.dot_control(ei, dei, ddei,
-							uav_ros.f1_rho1(), uav_ros.f2_rho2(), uav_ros.rho2(), uav_ros.h_rho1(), uav_ros.dot_f1_rho1(), uav_ros.dot_Frho2_f1f2(), uav_ros.dot_f1g(),
-							delta_inner_obs)
+		# '''5. compute the derivative of the inner-loop controller'''
+		# ctrl_in.dot_control(ei, dei, ddei,
+		# 					uav_ros.f1_rho1(), uav_ros.f2_rho2(), uav_ros.rho2(), uav_ros.h_rho1(), uav_ros.dot_f1_rho1(), uav_ros.dot_Frho2_f1f2(), uav_ros.dot_f1g(),
+		# 					delta_inner_obs)
 
 		'''6. get new uav states from Gazebo'''
 		uav_ros.rk44(action=ctrl_in.control, uav_state=uav_odom_2_uav_state(uav_odom))
 
 		'''7. compute control output of the inner-loop subsystem for next time step'''
-		ctrl_in.control_update()
+		ctrl_in.control_update(m=uav_ros.m,
+							   g=uav_ros.g,
+							   phi=uav_ros.phi,
+							   theta=uav_ros.theta,
+							   kp=uav_ros.kt,
+							   dz=uav_ros.vz,
+							   dot2_zd=dot2_rhod,
+							   e=ei,
+							   de=dei,
+							   delta_obs=delta_inner_obs)
 
 		'''8. compute the virtual control output of the outer-loop subsystem'''
 		if OBSERVER_OUT:
@@ -332,7 +350,7 @@ if __name__ == "__main__":
 		ctrl_out.control(e=e_o, de=dot_e_o, dd_ref=dot2_eta_d, obs=delta_outer_obs)
 
 		'''9. data storage'''
-		data_block = {'time': uav_ros.time,  # time
+		data_block = {'time': np.round(uav_ros.time, 3),  # time
 					  'ctrl_in': ctrl_in.control,  # thrust
 					  'ref_angle': np.array([phi_d, theta_d, ref[3]]),  # phid thetad psid
 					  'ref_pos': ref[0: 3],  # xd yd zd
@@ -341,15 +359,15 @@ if __name__ == "__main__":
 					  'state': uav_ros.uav_state_call_back()}  # 12 状态
 		data_record.record(data=data_block)
 
-		# print('==========START==========')
-		# print('time:', uav_ros.time)
-		# print('Position x:', ref[0], '    ', uav_ros.x)
-		# print('Theta:', theta_d * 180 / np.pi)
-		# print('Position y:', ref[1], '    ', uav_ros.y)
-		# print('Phi:', phi_d * 180 / np.pi)
-		# print('Position z:', ref[2], '    ', uav_ros.z)
-		# print('Thrust:', ctrl_in.control, '    ', thrust_2_throttle(ctrl_in.control))
-		# print('===========END===========')
+		print('==========START==========')
+		print('time: %.3f' % uav_ros.time)
+		print(' x_REF    x    || Theta_ref')
+		print(' %.2f   %.2f  ||  %.2f' % (ref[0], uav_ros.x, theta_d * 180 / np.pi))
+		print(' y_REF    y    ||  Phi_ref')
+		print(' %.2f   %.2f  ||  %.2f' % (ref[1], uav_ros.y, phi_d * 180 / np.pi))
+		print(' z_REF    z    || thrust   PWM')
+		print(' %.2f   %.2f   ||  %.2f   %.2f' % (ref[2], uav_ros.z, ctrl_in.control, thrust_2_throttle(ctrl_in.control)))
+		print('===========END===========\n')
 
 		'''10. 将期望姿态角和油门推力转换到 ROS topic 下边'''
 		ctrl_cmd.header.stamp = rospy.Time.now()

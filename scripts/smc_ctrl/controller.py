@@ -112,9 +112,9 @@ class ctrl_out:
 
 
 class data_collector:
-    def __init__(self, N: int):
+    def __init__(self, N: int = 2):
         self.t = np.zeros((N, 1)).astype(float)
-        self.inner_control = np.zeros((N, 1)).astype(float)
+        self.inner_control = np.zeros((N, 2)).astype(float)
         self.ref_angle = np.zeros((N, 3)).astype(float)
         self.ref_pos = np.zeros((N, 3)).astype(float)
         self.d_in_obs = np.zeros((N, 1)).astype(float)
@@ -128,14 +128,15 @@ class data_collector:
         self.N = N
 
     def record(self, data: dict):
-        self.t[self.index][0] = data['time']
-        self.inner_control[self.index] = data['ctrl_in']
-        self.ref_angle[self.index] = data['ref_angle']
-        self.ref_pos[self.index] = data['ref_pos']
-        self.d_in_obs[self.index] = data['d_in_obs']
-        self.d_out_obs[self.index] = data['d_out_obs']
-        self.state[self.index] = data['state']
-        self.index += 1
+        if self.index < self.N:
+            self.t[self.index][0] = data['time']
+            self.inner_control[self.index] = data['ctrl_in']
+            self.ref_angle[self.index] = data['ref_angle']
+            self.ref_pos[self.index] = data['ref_pos']
+            self.d_in_obs[self.index] = data['d_in_obs']
+            self.d_out_obs[self.index] = data['d_out_obs']
+            self.state[self.index] = data['state']
+            self.index += 1
 
     def package2file(self, path: str):
         pd.DataFrame(np.hstack((self.t, self.state)),
@@ -147,7 +148,7 @@ class data_collector:
             to_csv(path + self.name[1], sep=',', index=False)
 
         pd.DataFrame(np.hstack((self.t, self.inner_control)),
-                     columns=['time', 'throttle']). \
+                     columns=['time', 'thrust', 'throttle']). \
             to_csv(path + self.name[2], sep=',', index=False)
 
         pd.DataFrame(np.hstack((self.t, self.d_out_obs, self.d_in_obs)),
