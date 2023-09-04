@@ -230,9 +230,9 @@ if __name__ == "__main__":
 
 	'''generate reference command'''
 	# ref_amplitude = np.array([1.5, 1.5, 0.5, 0])  # xd yd zd psid 振幅
-	ref_amplitude = np.array([1.5, 1.5, 0.5, 0])  # xd yd zd psid 振幅
-	ref_period = np.array([5, 5, 5, 10])  # xd yd zd psid 周期
-	ref_bias_a = np.array([0, 0, 1, 0])  # xd yd zd psid 幅值偏移
+	ref_amplitude = np.array([1.2, 1.2, 0.5, 0])  # xd yd zd psid 振幅
+	ref_period = np.array([10, 10, 5, 10])  # xd yd zd psid 周期
+	ref_bias_a = np.array([0, 0, 1.0, 0])  # xd yd zd psid 幅值偏移
 	ref_bias_phase = np.array([np.pi / 2, 0, 0, 0])  # xd yd zd psid 相位偏移
 	'''generate reference command'''
 
@@ -251,11 +251,11 @@ if __name__ == "__main__":
 	while not rospy.is_shutdown():
 		t = rospy.Time.now().to_sec()
 		if global_flag == 1:		# approaching
-			approaching_flag, ok = approaching(t0, approaching_flag, 2.0)
+			approaching_flag, ok = approaching(t0, approaching_flag, 5.0)
 			if ok:
 				print('OFFBOARD, start to initialize...')
 				uav_ros = UAV_ROS(m=0.797, g=9.8, kt=1e-3, dt=1 / frequency)
-				c_out = ctrl_out(k1=np.array([0.9, 0.9]),  # 1.2, 0.8
+				c_out = ctrl_out(k1=np.array([1.0, 1.0]),  # 1.2, 0.8
 								 k2=np.array([0.3, 0.3]),  # 0.4, 0.6
 								 k3=np.array([0.05, 0.05]),
 								 alpha=np.array([1.2, 1.2]),
@@ -392,12 +392,12 @@ if __name__ == "__main__":
 				data_record.package2file(path=os.getcwd() + '/src/acc_2024_ros/scripts/datasave/')
 				global_flag = 3
 		elif global_flag == 3:		# finish, back to offboard position
-			pose.pose.position.x = 0
+			pose.pose.position.x = 1
 			pose.pose.position.y = 0
 			pose.pose.position.z = 0.5
 			local_pos_pub.publish(pose)
 		else:
-			pose.pose.position.x = 0
+			pose.pose.position.x = 1
 			pose.pose.position.y = 0
 			pose.pose.position.z = 0.5
 			local_pos_pub.publish(pose)
