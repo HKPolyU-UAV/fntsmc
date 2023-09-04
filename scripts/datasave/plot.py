@@ -10,8 +10,8 @@ def plot_pos():
     plt.plot(time, ref_pos[:, 0], 'red')
     plt.plot(time, uav_pos[:, 0], 'blue')
     plt.grid(True)
-    plt.ylim((-5, 5))
-    plt.yticks(np.arange(-5, 5, 1))
+    plt.ylim((-2, 2))
+    plt.yticks(np.arange(-2, 2, 0.5))
     plt.xlabel('time(s)')
     plt.title('X')
 
@@ -19,8 +19,8 @@ def plot_pos():
     plt.plot(time, ref_pos[:, 1], 'red')
     plt.plot(time, uav_pos[:, 1], 'blue')
     plt.grid(True)
-    plt.ylim((-5, 5))
-    plt.yticks(np.arange(-5, 5, 1))
+    plt.ylim((-2, 2))
+    plt.yticks(np.arange(-2, 2, 0.5))
     plt.xlabel('time(s)')
     plt.title('Y')
 
@@ -28,8 +28,8 @@ def plot_pos():
     plt.plot(time, ref_pos[:, 2], 'red')
     plt.plot(time, uav_pos[:, 2], 'blue')
     plt.grid(True)
-    plt.ylim((-5, 5))
-    plt.yticks(np.arange(-5, 5, 1))
+    plt.ylim((0, 2))
+    plt.yticks(np.arange(0, 2, 0.5))
     plt.xlabel('time(s)')
     plt.title('Z')
 

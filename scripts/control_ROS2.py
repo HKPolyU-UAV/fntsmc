@@ -231,7 +231,7 @@ if __name__ == "__main__":
 	'''generate reference command'''
 	# ref_amplitude = np.array([1.5, 1.5, 0.5, 0])  # xd yd zd psid 振幅
 	ref_amplitude = np.array([1.2, 1.2, 0.5, 0])  # xd yd zd psid 振幅
-	ref_period = np.array([10, 10, 5, 10])  # xd yd zd psid 周期
+	ref_period = np.array([4, 4, 5, 10])  # xd yd zd psid 周期
 	ref_bias_a = np.array([0, 0, 1.0, 0])  # xd yd zd psid 幅值偏移
 	ref_bias_phase = np.array([np.pi / 2, 0, 0, 0])  # xd yd zd psid 相位偏移
 	'''generate reference command'''
@@ -255,21 +255,21 @@ if __name__ == "__main__":
 			if ok:
 				print('OFFBOARD, start to initialize...')
 				uav_ros = UAV_ROS(m=0.797, g=9.8, kt=1e-3, dt=1 / frequency)
-				c_out = ctrl_out(k1=np.array([1.0, 1.0]),  # 1.2, 0.8
+				c_out = ctrl_out(k1=np.array([1.2, 1.2]),  # 1.2, 0.8
 								 k2=np.array([0.3, 0.3]),  # 0.4, 0.6
 								 k3=np.array([0.05, 0.05]),
 								 alpha=np.array([1.2, 1.2]),
 								 beta=np.array([0.7, 0.7]),  # 0.3, 0.3 從0.3改成0.7之後，效果明顯提升
-								 gamma=np.array([0.2, 0.2]),
-								 lmd=np.array([1.5, 1.0]),  # 2, 2
+								 gamma=np.array([1.5, 1.5]),
+								 lmd=np.array([2.0, 2.0]),  # 2, 2
 								 dt=uav_ros.dt)  # 外环控制器 x y
 				c_in = ctrl_in2(ctrl0=uav_ros.m * uav_ros.g,
-								k1=2,
+								k1=8,
 								k2=0.4,
-								alpha=1.2,
+								alpha=2.0,
 								beta=0.7,
-								gamma=0.2,
-								lmd=2.0,
+								gamma=1.5,
+								lmd=3.0,
 								dt=1 / frequency)
 				obs_out = neso_out(l1=np.array([3., 3.]),
 								   l2=np.array([3., 3.]),
@@ -340,6 +340,8 @@ if __name__ == "__main__":
 								e=ei,
 								de=dei,
 								delta_obs=delta_inner_obs)
+			k_compensate_z = 0.9
+			c_in.control += k_compensate_z * dot2_ref[2]
 
 			'''7. compute the virtual control output of the outer-loop subsystem'''
 			if OBSERVER_OUT:
@@ -351,7 +353,8 @@ if __name__ == "__main__":
 			e_o = uav_ros.eta() - eta_d
 			dot_e_o = dot_eta - dot_eta_d
 			c_out.control(e=e_o, de=dot_e_o, dd_ref=dot2_eta_d, obs=delta_outer_obs)
-
+			k_compensate_xy = np.array([0.5, 0.5])
+			c_out.ctrl += k_compensate_xy * dot2_ref[0: 2]
 			'''8. display'''
 			# print('==========START==========')
 			# print('time: %.3f' % uav_ros.time)

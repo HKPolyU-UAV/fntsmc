@@ -1,0 +1,58 @@
+# parameter selection
+1. reference command:
+	ref_amplitude = np.array([1.2, 1.2, 0.3, 0])  # xd yd zd psid 振幅
+	ref_period = np.array([4, 4, 5, 10])  # xd yd zd psid 周期
+	ref_bias_a = np.array([0, 0, 1.0, 0])  # xd yd zd psid 幅值偏移
+	ref_bias_phase = np.array([np.pi / 2, 0, 0, 0])  # xd yd zd psid 相位偏移
+
+2. UAV parameters:
+	m = 0.797
+	g = 9.8
+	kt = 1e-3
+	frequency = 100
+	dt = 1/ frequency
+
+3. outer controller: (FNTSMC)
+	k1=np.array([1.2, 1.2])
+	k2=np.array([0.3, 0.3])
+	k3=np.array([0.05, 0.05])
+	alpha=np.array([1.2, 1.2])
+	beta=np.array([0.7, 0.7])
+	gamma=np.array([1.5, 1.5])
+	lmd=np.array([2.0, 2.0])
+	dt=uav_ros.dt
+
+
+4. inner controller: (FNTSMC)
+	k1=8
+	k2=0.4
+	alpha=2.0
+	beta=0.7
+	gamma=1.5
+	lmd=3.0
+	dt=1 / frequency
+	
+5. outer observer: (NESO)
+	l1=np.array([3., 3.])
+	l2=np.array([3., 3.])
+	l3=np.array([1., 1.])
+	r=np.array([20., 20.])
+	k1=np.array([0.7, 0.7])
+	k2=np.array([0.001, 0.001])
+
+6. inner observer: (NESO)
+	l1=3.
+	l2=3.
+	l3=1.
+	r=5.
+	k1=0.7
+	k2=0.001
+
+7. Compensator:
+	k_compensate_xy = np.array([0.5, 0.5])
+	k_compensate_z = 1.0
+
+
+
+
+
