@@ -74,9 +74,9 @@ def thrust_2_throttle(thrust: float):
 
 	"""
 	'''gazebo 线性模型'''
-	k = 0.391 / 0.797 / 9.8
-	_throttle = k * thrust
-	_throttle = max(min(_throttle, 0.9), 0.10)
+	# k = 0.391 / 0.797 / 9.8
+	# _throttle = k * thrust
+	# _throttle = max(min(_throttle, 0.9), 0.10)
 	'''gazebo 线性模型'''
 
 	'''姜百伦飞机模型'''
@@ -91,18 +91,18 @@ def thrust_2_throttle(thrust: float):
 	'''姜百伦飞机模型'''
 
 	'''330飞机模型'''
-	# _m = 0.797	# uav 质量
-	# _g = 9.8
-	# _y = -0.0181 * voltage + 0.4854		# 不同电压下的悬停油门
-	# _y = min(max(_y, 0.19), 0.23)
-	# k = _y / (_m * _g)
-	# _throttle = k * thrust
-	# _throttle = max(min(_throttle, 0.6), 0.10)
+	_m = 0.797	# uav 质量
+	_g = 9.8
+	_y = -0.0181 * voltage + 0.4854		# 不同电压下的悬停油门
+	_y = min(max(_y, 0.19), 0.23)
+	k = _y / (_m * _g)
+	_throttle = k * thrust
+	_throttle = max(min(_throttle, 0.6), 0.10)
 	'''330飞机模型'''
 	return _throttle
 
 
-def approaching(t: float, ap_flag: bool, threshold: float):
+def approaching(_t: float, ap_flag: bool, threshold: float):
 	ref, _, _, _ = ref_uav(0., ref_amplitude, ref_period, ref_bias_a, ref_bias_phase)
 	pose.pose.position.x = ref[0]
 	pose.pose.position.y = ref[1]
@@ -110,9 +110,9 @@ def approaching(t: float, ap_flag: bool, threshold: float):
 	uav_pos = uav_odom_2_uav_state(uav_odom)[0: 3]
 	local_pos_pub.publish(pose)
 	_bool = False
-	if np.linalg.norm(ref[0: 3] - uav_pos) < 0.2:
+	if np.linalg.norm(ref[0: 3] - uav_pos) < 0.25:
 		if ap_flag:
-			_bool = True if rospy.Time.now().to_sec() - t >= threshold else False
+			_bool = True if rospy.Time.now().to_sec() - _t >= threshold else False
 		else:
 			ap_flag = True
 	else:
@@ -219,7 +219,7 @@ if __name__ == "__main__":
 	'''generate reference command'''
 	# ref_amplitude = np.array([0., 0., 0., 0])  # xd yd zd psid 振幅
 	ref_amplitude = np.array([1.2, 1.2, 0.3, 0])  # xd yd zd psid 振幅
-	ref_period = np.array([4, 4, 10, 10])  # xd yd zd psid 周期
+	ref_period = np.array([6, 6, 10, 10])  # xd yd zd psid 周期
 	ref_bias_a = np.array([0, 0, 1.0, 0])  # xd yd zd psid 幅值偏移
 	ref_bias_phase = np.array([np.pi / 2, 0, 0, 0])  # xd yd zd psid 相位偏移
 	'''generate reference command'''
@@ -235,22 +235,22 @@ if __name__ == "__main__":
 	obs_in = None
 	data_record = None
 	'''define controllers and observers'''
-
+	# global_flag = 2
 	while not rospy.is_shutdown():
 		t = rospy.Time.now().to_sec()
 		if global_flag == 1:		# approaching
-			approaching_flag, ok = approaching(t0, approaching_flag, 5.0)
+			approaching_flag, ok = approaching(t0, approaching_flag, 10.0)
 			# ok = True
 			if ok:
 				print('OFFBOARD, start to initialize...')
 				uav_ros = UAV_ROS(m=0.797, g=9.8, kt=1e-3, dt=1 / frequency)
-				c_out = ctrl_out(k1=np.array([0.2, 0.2]),  # 1.2, 0.8
-								 k2=np.array([0.3, 0.3]),  # 0.4, 0.6
+				c_out = ctrl_out(k1=np.array([0.7, 0.7]),  # 越大，角度相应越猛烈
+								 k2=np.array([0.6, 0.6]),  # 
 								 k3=np.array([0.05, 0.05]),
 								 alpha=np.array([1.2, 1.2]),
-								 beta=np.array([0.1, 0.1]),  # 越大，角度相应越猛烈
+								 beta=np.array([0.7, 0.7]),  # 越大，角度相应越猛烈
 								 gamma=np.array([1.0, 1.0]),
-								 lmd=np.array([1.0, 1.0]),  # 2, 2 TODO 积分太大了
+								 lmd=np.array([1.3, 1.3]),  # 2, 2 TODO 积分太大了
 								 dt=uav_ros.dt)  # 外环控制器 x y
 
 				c_in = ctrl_in2(ctrl0=uav_ros.m * uav_ros.g,
@@ -355,6 +355,11 @@ if __name__ == "__main__":
 			ctrl_cmd.thrust = thrust_2_throttle(c_in.control)
 			uav_att_throttle_pub.publish(ctrl_cmd)
 
+			# pose.pose.position.x = ref[0]
+			# pose.pose.position.y = ref[1]
+			# pose.pose.position.z = ref[2]
+			# local_pos_pub.publish(pose)
+
 			'''5. get new uav states from Gazebo'''
 			uav_ros.rk44(action=c_in.control, uav_state=uav_odom_2_uav_state(uav_odom))
 
@@ -368,9 +373,14 @@ if __name__ == "__main__":
 			e_o = uav_ros.eta() - eta_d
 			dot_e_o = dot_eta - dot_eta_d
 			dot2_e_o = uav_ros.dot2_eta(delta_outer_obs) - dot2_eta_d
-			c_out.control(e=e_o, de=dot_e_o, dd_ref=dot2_eta_d, obs=delta_outer_obs)
-			k_compensate_xy = np.array([0.0, 0.0])
+			c_out.control(e=e_o, de=dot_e_o, dd_ref=dot2_eta_d, d_ref=dot_eta_d, obs=delta_outer_obs)
+
+			k_compensate_xy = np.array([0., 0.])
 			c_out.ctrl += k_compensate_xy * dot2_e_o[0: 2]
+
+			# k_compensate_vxy = np.array([0.6, 0.6])
+			# c_out.ctrl += k_compensate_vxy * dot_e_o[0: 2]
+
 			'''8. display'''
 			# print('==========START==========')
 			# print('time: %.3f' % uav_ros.time)

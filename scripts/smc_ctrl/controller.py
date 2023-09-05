@@ -65,7 +65,17 @@ class ctrl_in2:
 		self.sigma = self.s + self.lmd * self.s1
 		self.control = ctrl0
 
-	def control_update(self, m: float, g: float, phi: float, theta: float, kp: float, dz: float, dot2_zd: float, e: float, de: float, delta_obs: float):
+	def control_update(self,
+					   m: float,
+					   g: float,
+					   phi: float,
+					   theta: float,
+					   kp: float,
+					   dz: float,
+					   dot2_zd: float,
+					   e: float,
+					   de: float,
+					   delta_obs: float):
 		k_tanh_e = 5
 		k_tanh_sigma0 = 5
 		self.s = de + self.k1 * e + self.gamma * np.fabs(e) ** self.alpha * np.tanh(k_tanh_e * e)
@@ -165,14 +175,22 @@ class ctrl_out:
 		self.so = self.sigma_o + lmd * self.sigma_o1
 		self.ctrl = np.array([0., 0.]).astype(float)
 
-	def control(self, e: np.ndarray, de: np.ndarray, dd_ref: np.ndarray, obs: np.ndarray):
+	def control(self,
+				e: np.ndarray,
+				de: np.ndarray,
+				dd_ref: np.ndarray,
+				d_ref: np.ndarray,
+				obs: np.ndarray):
 		k_tanh_e = 5
 		k_tanh_sigma0 = 5
-		self.sigma_o = de + self.k1 * e + self.gamma * np.fabs(e) ** self.alpha * np.tanh(k_tanh_e * e)
+		kk_ht = 0.3
+		self.sigma_o = (de - kk_ht * d_ref) + self.k1 * e + self.gamma * np.fabs(e) ** self.alpha * np.tanh(k_tanh_e * e)
 		self.dot_sigma_o1 = np.fabs(self.sigma_o) ** self.beta * np.tanh(k_tanh_sigma0 * self.sigma_o)
 		self.sigma_o1 += self.dot_sigma_o1 * self.dt
 		self.so = self.sigma_o + self.lmd * self.sigma_o1
-		uo1 = dd_ref - self.k1 * de - self.gamma * self.alpha * np.fabs(e) ** (self.alpha - 1) * de - self.lmd * self.dot_sigma_o1
+		uo1 = dd_ref - self.k1 * (de - kk_ht * d_ref) \
+		      - self.gamma * self.alpha * np.fabs(e) ** (self.alpha - 1) * (de - kk_ht * d_ref) \
+			  - self.lmd * self.dot_sigma_o1
 		uo2 = -self.k2 * self.so - obs
 		self.ctrl = uo1 + uo2
 
