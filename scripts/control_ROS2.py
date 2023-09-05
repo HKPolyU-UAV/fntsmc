@@ -12,7 +12,7 @@ import tf
 from tf.transformations import quaternion_matrix
 
 from smc_ctrl.uav_ROS import UAV_ROS
-from smc_ctrl.controller import ctrl_out, data_collector, ctrl_in2
+from smc_ctrl.controller import ctrl_out, data_collector, ctrl_in ,ctrl_in2, ctrl_in3
 from smc_ctrl.NESO import neso_in, neso_out
 from smc_ctrl.ref_cmd import *
 from smc_ctrl.utils import *
@@ -73,22 +73,10 @@ def thrust_2_throttle(thrust: float):
 	"""
 
 	"""
-	# m = np.array([0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.7])
-	# y = np.array([0.257, 0.330, 0.391, 0.446, 0.497, 0.543, 0.585, 0.626, 0.665, 0.703, 0.736, 0.771, 0.803, 0.835, 0.865, 0.894, 0.921, 0.937])
-
-	'''gazebo 三次曲线模型'''
-	# a = 0.1150
-	# b = 0.0405
-	# c = -7.8859e-4
-	# d = 8.2424e-06
-	# _throttle = a + b * thrust + c * thrust ** 2 + d * thrust ** 3
-	# _throttle = max(min(_throttle, 0.95), 0.10)
-	'''gazebo 三次曲线模型'''
-
 	'''gazebo 线性模型'''
-	# k = 0.06307977736549165
-	# _throttle = k * thrust
-	# _throttle = max(min(_throttle, 0.9), 0.10)
+	k = 0.391 / 0.797 / 9.8
+	_throttle = k * thrust
+	_throttle = max(min(_throttle, 0.9), 0.10)
 	'''gazebo 线性模型'''
 
 	'''姜百伦飞机模型'''
@@ -103,13 +91,13 @@ def thrust_2_throttle(thrust: float):
 	'''姜百伦飞机模型'''
 
 	'''330飞机模型'''
-	_m = 0.797	# uav 质量
-	_g = 9.8
-	_y = -0.0181 * voltage + 0.4854		# 不同电压下的悬停油门
-	_y = min(max(_y, 0.19), 0.23)
-	k = _y / (_m * _g)
-	_throttle = k * thrust
-	_throttle = max(min(_throttle, 0.6), 0.10)
+	# _m = 0.797	# uav 质量
+	# _g = 9.8
+	# _y = -0.0181 * voltage + 0.4854		# 不同电压下的悬停油门
+	# _y = min(max(_y, 0.19), 0.23)
+	# k = _y / (_m * _g)
+	# _throttle = k * thrust
+	# _throttle = max(min(_throttle, 0.6), 0.10)
 	'''330飞机模型'''
 	return _throttle
 
@@ -229,9 +217,9 @@ if __name__ == "__main__":
 	global_flag = 1
 
 	'''generate reference command'''
-	# ref_amplitude = np.array([1.5, 1.5, 0.5, 0])  # xd yd zd psid 振幅
-	ref_amplitude = np.array([1.2, 1.2, 0.5, 0])  # xd yd zd psid 振幅
-	ref_period = np.array([4, 4, 5, 10])  # xd yd zd psid 周期
+	# ref_amplitude = np.array([0., 0., 0., 0])  # xd yd zd psid 振幅
+	ref_amplitude = np.array([1.2, 1.2, 0.3, 0])  # xd yd zd psid 振幅
+	ref_period = np.array([4, 4, 10, 10])  # xd yd zd psid 周期
 	ref_bias_a = np.array([0, 0, 1.0, 0])  # xd yd zd psid 幅值偏移
 	ref_bias_phase = np.array([np.pi / 2, 0, 0, 0])  # xd yd zd psid 相位偏移
 	'''generate reference command'''
@@ -252,25 +240,38 @@ if __name__ == "__main__":
 		t = rospy.Time.now().to_sec()
 		if global_flag == 1:		# approaching
 			approaching_flag, ok = approaching(t0, approaching_flag, 5.0)
+			# ok = True
 			if ok:
 				print('OFFBOARD, start to initialize...')
 				uav_ros = UAV_ROS(m=0.797, g=9.8, kt=1e-3, dt=1 / frequency)
-				c_out = ctrl_out(k1=np.array([1.2, 1.2]),  # 1.2, 0.8
+				c_out = ctrl_out(k1=np.array([0.2, 0.2]),  # 1.2, 0.8
 								 k2=np.array([0.3, 0.3]),  # 0.4, 0.6
 								 k3=np.array([0.05, 0.05]),
 								 alpha=np.array([1.2, 1.2]),
-								 beta=np.array([0.7, 0.7]),  # 0.3, 0.3 從0.3改成0.7之後，效果明顯提升
-								 gamma=np.array([1.5, 1.5]),
-								 lmd=np.array([2.0, 2.0]),  # 2, 2
+								 beta=np.array([0.1, 0.1]),  # 越大，角度相应越猛烈
+								 gamma=np.array([1.0, 1.0]),
+								 lmd=np.array([1.0, 1.0]),  # 2, 2 TODO 积分太大了
 								 dt=uav_ros.dt)  # 外环控制器 x y
+
 				c_in = ctrl_in2(ctrl0=uav_ros.m * uav_ros.g,
-								k1=8,
-								k2=0.4,
-								alpha=2.0,
-								beta=0.7,
-								gamma=1.5,
-								lmd=3.0,
+								k1=4.0,
+								k2=0.8,
+								alpha=1.2,
+								beta=0.5,
+								gamma=0.6,
+								lmd=1.2,
 								dt=1 / frequency)
+				# c_in = ctrl_in3(ctrl0=uav_ros.m * uav_ros.g,
+				# 				k=4,
+				# 				k0=0,
+				# 				beta=1.0,
+				# 				c=2,
+				# 				p=17,
+				# 				q=13,
+				# 				m=5,
+				# 				n=5,
+				# 				dt=1 / frequency)
+
 				obs_out = neso_out(l1=np.array([3., 3.]),
 								   l2=np.array([3., 3.]),
 								   l3=np.array([1., 1.]),
@@ -285,7 +286,7 @@ if __name__ == "__main__":
 				global_flag = 2
 		elif global_flag == 2:		# control
 			t_now = round(t - t0, 4)
-			if uav_ros.n % 1000 == 0:
+			if uav_ros.n % 100 == 0:
 				print('time: ', t_now, data_record.index)
 
 			'''1. generate reference command and uncertainty'''
@@ -302,34 +303,38 @@ if __name__ == "__main__":
 			# dot3_eta_d = np.array([dot3_ref[0], dot3_ref[1]])  # 外环参考三阶导
 
 			'''3. generate inner-loop reference signal 'rho_d' and its 1st and 2nd-order derivatives'''
-			phi_d, theta_d = uo_2_ref_angle(c_out.ctrl, ref[3], uav_ros.m, c_in.control, np.pi / 3)
+			phi_d, theta_d = uo_2_ref_angle(c_out.ctrl, ref[3], uav_ros.m, c_in.control, np.pi / 4)
 			rhod = ref[2]  # zd
 			dot_rhod = dot_ref[2]  # zd 的一阶导数
 			dot2_rhod = dot2_ref[2]  # zd的二阶导数
+
+			ctrl_cmd.header.stamp = rospy.Time.now()
+			ctrl_cmd.type_mask = AttitudeTarget.IGNORE_ROLL_RATE + AttitudeTarget.IGNORE_PITCH_RATE + AttitudeTarget.IGNORE_YAW_RATE
+
+			cmd_q = tf.transformations.quaternion_from_euler(phi_d, theta_d, ref[3])  # x y z w
 
 			'''4. compute the error 'ei' and its 1st and 2nd-order derivatives'''
 			ei = uav_ros.rho1() - rhod
 			dei = uav_ros.dot_rho1() - dot_rhod
 
-			OBSERVER_IN = True
+			OBSERVER_IN = False
 			OBSERVER_OUT = False
 
 			if OBSERVER_IN:
 				syst_dynamic = uav_ros.dot_f1_rho1() * uav_ros.rho2() + \
 							   uav_ros.f1_rho1() * uav_ros.f2_rho2() + \
-							   uav_ros.f1_rho1() * uav_ros.h_rho1() * c_in.control - dot2_rhod  # '-dot2_rhod' 这一项是ROS程序特有的
+							   uav_ros.f1_rho1() * uav_ros.h_rho1() * c_in.control - dot2_rhod
 				delta_inner_obs, _ = obs_in.observe(dt=uav_ros.dt, x=ei, syst_dynamic=syst_dynamic)  #
 			else:
-				delta_inner_obs = -dot2_rhod
+				delta_inner_obs = 0.
 
 			ddei = (uav_ros.dot_f1_rho1() * uav_ros.rho2() +
 					uav_ros.f1_rho1() * (uav_ros.f2_rho2() + uav_ros.h_rho1() * c_in.control) +
 					delta_inner_obs)
 
-			'''5. get new uav states from Gazebo'''
-			uav_ros.rk44(action=c_in.control, uav_state=uav_odom_2_uav_state(uav_odom))
+			# c_in.c = c_in.c0 * np.tanh(np.fabs(30 * ei))
+			# c_in.beta = c_in.beta0 * np.tanh(np.fabs(5 * dei))
 
-			'''6. compute control output of the inner-loop subsystem for next time step'''
 			c_in.control_update(m=uav_ros.m,
 								g=uav_ros.g,
 								phi=uav_ros.phi,
@@ -340,8 +345,18 @@ if __name__ == "__main__":
 								e=ei,
 								de=dei,
 								delta_obs=delta_inner_obs)
-			k_compensate_z = 0.9
-			c_in.control += k_compensate_z * dot2_ref[2]
+			k_compensate_z_acc = 0.9
+			c_in.control += k_compensate_z_acc * dot2_ref[2]
+
+			ctrl_cmd.orientation.x = cmd_q[0]
+			ctrl_cmd.orientation.y = cmd_q[1]
+			ctrl_cmd.orientation.z = cmd_q[2]
+			ctrl_cmd.orientation.w = cmd_q[3]
+			ctrl_cmd.thrust = thrust_2_throttle(c_in.control)
+			uav_att_throttle_pub.publish(ctrl_cmd)
+
+			'''5. get new uav states from Gazebo'''
+			uav_ros.rk44(action=c_in.control, uav_state=uav_odom_2_uav_state(uav_odom))
 
 			'''7. compute the virtual control output of the outer-loop subsystem'''
 			if OBSERVER_OUT:
@@ -352,9 +367,10 @@ if __name__ == "__main__":
 			dot_eta = uav_ros.dot_eta()
 			e_o = uav_ros.eta() - eta_d
 			dot_e_o = dot_eta - dot_eta_d
+			dot2_e_o = uav_ros.dot2_eta(delta_outer_obs) - dot2_eta_d
 			c_out.control(e=e_o, de=dot_e_o, dd_ref=dot2_eta_d, obs=delta_outer_obs)
-			k_compensate_xy = np.array([0.5, 0.5])
-			c_out.ctrl += k_compensate_xy * dot2_ref[0: 2]
+			k_compensate_xy = np.array([0.0, 0.0])
+			c_out.ctrl += k_compensate_xy * dot2_e_o[0: 2]
 			'''8. display'''
 			# print('==========START==========')
 			# print('time: %.3f' % uav_ros.time)
@@ -365,20 +381,6 @@ if __name__ == "__main__":
 			# print(' z_REF    z    || thrust   PWM')
 			# print(' %.2f   %.2f   ||  %.2f   %.2f' % (ref[2], uav_ros.z, c_in.control, thrust_2_throttle(c_in.control)))
 			# print('===========END===========\n')
-
-			'''9. 将期望姿态角和油门推力转换到 ROS topic 下边'''
-			ctrl_cmd.header.stamp = rospy.Time.now()
-			ctrl_cmd.type_mask = AttitudeTarget.IGNORE_ROLL_RATE + AttitudeTarget.IGNORE_PITCH_RATE + AttitudeTarget.IGNORE_YAW_RATE
-
-			cmd_q = tf.transformations.quaternion_from_euler(phi_d, theta_d, ref[3])  # x y z w
-			# cmd_q = np.array([0., 0., 0., 1.])	# x y z w
-			ctrl_cmd.orientation.x = cmd_q[0]
-			ctrl_cmd.orientation.y = cmd_q[1]
-			ctrl_cmd.orientation.z = cmd_q[2]
-			ctrl_cmd.orientation.w = cmd_q[3]
-			ctrl_cmd.thrust = thrust_2_throttle(c_in.control)
-
-			uav_att_throttle_pub.publish(ctrl_cmd)
 
 			'''10. data storage'''
 			data_block = {'time': np.round(uav_ros.time, 3),  # time

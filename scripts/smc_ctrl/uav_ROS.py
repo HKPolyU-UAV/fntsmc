@@ -139,6 +139,9 @@ class UAV_ROS:
 	def dot_eta(self):
 		return np.array([self.vx, self.vy])
 
+	def dot2_eta(self, obs: np.ndarray):
+		return -self.kt / self.m * self.dot_eta() + self.A() + obs
+
 	def A(self):
 		return self.control / self.m * np.array([C(self.phi) * C(self.psi) * S(self.theta) + S(self.phi) * S(self.psi),
 												 C(self.phi) * S(self.psi) * S(self.theta) - S(self.phi) * C(self.psi)]).astype(float)
