@@ -74,9 +74,9 @@ def thrust_2_throttle(thrust: float):
 
 	"""
 	'''gazebo 线性模型'''
-	# k = 0.391 / 0.797 / 9.8
-	# _throttle = k * thrust
-	# _throttle = max(min(_throttle, 0.9), 0.10)
+	k = 0.391 / 0.797 / 9.8
+	_throttle = k * thrust
+	_throttle = max(min(_throttle, 0.9), 0.10)
 	'''gazebo 线性模型'''
 
 	'''姜百伦飞机模型'''
@@ -91,13 +91,13 @@ def thrust_2_throttle(thrust: float):
 	'''姜百伦飞机模型'''
 
 	'''330飞机模型'''
-	_m = 0.797	# uav 质量
-	_g = 9.8
-	_y = -0.0181 * voltage + 0.4854		# 不同电压下的悬停油门
-	_y = min(max(_y, 0.19), 0.23)
-	k = _y / (_m * _g)
-	_throttle = k * thrust
-	_throttle = max(min(_throttle, 0.6), 0.10)
+	# _m = 0.797	# uav 质量
+	# _g = 9.8
+	# _y = -0.0181 * voltage + 0.4854		# 不同电压下的悬停油门
+	# _y = min(max(_y, 0.19), 0.23)
+	# k = _y / (_m * _g)
+	# _throttle = k * thrust
+	# _throttle = max(min(_throttle, 0.6), 0.10)
 	'''330飞机模型'''
 	return _throttle
 
@@ -220,7 +220,7 @@ if __name__ == "__main__":
 	'''generate reference command'''
 	# ref_amplitude = np.array([0., 0., 0., 0])  # xd yd zd psid 振幅
 	ref_amplitude = np.array([1.5, 1.5, 0.3, 0])  # xd yd zd psid 振幅
-	ref_period = np.array([6, 6, 10, 10])  # xd yd zd psid 周期
+	ref_period = np.array([5, 5, 10, 10])  # xd yd zd psid 周期
 	ref_bias_a = np.array([0, 0, 1.0, 0])  # xd yd zd psid 幅值偏移
 	ref_bias_phase = np.array([np.pi / 2, 0, 0, 0])  # xd yd zd psid 相位偏移
 	'''generate reference command'''
@@ -256,22 +256,12 @@ if __name__ == "__main__":
 
 				c_in = ctrl_in2(ctrl0=uav_ros.m * uav_ros.g,
 								k1=4.0,
-								k2=0.8,
+								k2=2.0,
 								alpha=1.2,
-								beta=0.5,
-								gamma=0.6,
-								lmd=1.2,
+								beta=0.8,
+								gamma=0.75,
+								lmd=1.6,
 								dt=1 / frequency)
-				# c_in = ctrl_in3(ctrl0=uav_ros.m * uav_ros.g,
-				# 				k=4,
-				# 				k0=0,
-				# 				beta=1.0,
-				# 				c=2,
-				# 				p=17,
-				# 				q=13,
-				# 				m=5,
-				# 				n=5,
-				# 				dt=1 / frequency)
 
 				obs_out = neso_out(l1=np.array([3., 3.]),
 								   l2=np.array([3., 3.]),
@@ -293,9 +283,9 @@ if __name__ == "__main__":
 			'''1. generate reference command and uncertainty'''
 			rax = max(min(0.5 * t_now, 1.5), 0.0)
 			ray = max(min(0.5 * t_now, 1.5), 0.0)
-			raz = max(min(0.06 * t_now, 0.0), 0.0)
+			raz = max(min(0.06 * t_now, 0.3), 0.0)
 			rapsi = max(min(0.5 * t_now, 0), 0.0)
-			ref_amplitude = np.array([rax, ray, ray, rapsi])
+			ref_amplitude = np.array([rax, ray, raz, rapsi])
 			ref, dot_ref, dot2_ref, dot3_ref = ref_uav(t_now,
 													   ref_amplitude,
 													   ref_period,

@@ -64,47 +64,31 @@ class ctrl_in2:
         self.sigma = self.s + self.lmd * self.s1
         self.control = ctrl0
 
-	def control_update(self,
-					   m: float,
-					   g: float,
-					   phi: float,
-					   theta: float,
-					   kp: float,
-					   dz: float,
-					   dot2_zd: float,
-					   dot_zd: float,
-					   e: float,
-					   de: float,
-					   delta_obs: float):
-		k_tanh_e = 5
-		k_tanh_sigma0 = 5
+    def control_update(self,
+                       m: float,
+                       g: float,
+                       phi: float,
+                       theta: float,
+                       kp: float,
+                       dz: float,
+                       dot2_zd: float,
+                       dot_zd: float,
+                       e: float,
+                       de: float,
+                       delta_obs: float):
+        k_tanh_e = 5
+        k_tanh_sigma0 = 5
 
-		'''杨烨峰好使的'''
-		# self.s = de + self.k1 * e + self.gamma * np.fabs(e) ** self.alpha * np.tanh(k_tanh_e * e)
-		# self.dot_s1 = np.fabs(self.s) ** self.beta * np.tanh(k_tanh_sigma0 * self.s)
-		# self.s1 += self.dot_s1 * self.dt
-		# self.sigma = self.s + self.lmd * self.s1
+        '''杨烨峰好使的'''
+        self.s = de + self.k1 * e + self.gamma * np.fabs(e) ** self.alpha * np.tanh(k_tanh_e * e)
+        self.dot_s1 = np.fabs(self.s) ** self.beta * np.tanh(k_tanh_sigma0 * self.s)
+        self.s1 += self.dot_s1 * self.dt
+        self.sigma = self.s + self.lmd * self.s1
 
-		# u1 = (m * g + kp * dz) / m + dot2_zd - self.k1 * de - self.gamma * self.alpha * np.fabs(e) ** (self.alpha - 1) * de - self.lmd * self.dot_s1
-		# u2 = -delta_obs - self.k2 * self.sigma
-		# self.control = m * (u1 + u2 - self.ki * self.e_integration) / (np.cos(phi) * np.cos(theta))
-		'''杨烨峰好使的'''
-
-		kk_ht = 0.2
-		self.s = de + self.k1 * e + self.gamma * np.fabs(e) ** self.alpha * np.tanh(k_tanh_e * e)
-		self.dot_s1 = np.fabs(self.s) ** self.beta * np.tanh(k_tanh_sigma0 * self.s)
-		self.s1 += self.dot_s1 * self.dt
-		self.sigma = self.s + self.lmd * self.s1
-		# print('杨烨峰', self.sigma)
-
-		uf0 = (m * g + kp * dz) / m + dot2_zd
-		uf11 = -self.k1 * (de - kk_ht * dot_zd) - self.gamma * self.alpha * np.fabs(e) ** (self.alpha - 1) * (de - kk_ht * dot_zd) - self.lmd * self.dot_s1
-		if np.fabs(self.sigma) > 1:
-			uf12 = -delta_obs - self.k2 * self.sigma
-		else:
-			uf12 = -delta_obs - 2 * self.k2 * np.sign(self.sigma)
-		# uf12 = -delta_obs - self.k2 * self.sigma
-		self.control = (uf0 + uf11 + uf12) * m / (np.cos(phi) * np.cos(theta))
+        u1 = (m * g + kp * dz) / m + dot2_zd - self.k1 * de - self.gamma * self.alpha * np.fabs(e) ** (self.alpha - 1) * de - self.lmd * self.dot_s1
+        u2 = -delta_obs - self.k2 * self.sigma
+        self.control = m * (u1 + u2) / (np.cos(phi) * np.cos(theta))
+        '''杨烨峰好使的'''
 
 
 class ctrl_in3:
@@ -194,24 +178,24 @@ class ctrl_out:
         self.so = self.sigma_o + lmd * self.sigma_o1
         self.ctrl = np.array([0., 0.]).astype(float)
 
-	def control(self,
-				e: np.ndarray,
-				de: np.ndarray,
-				dd_ref: np.ndarray,
-				d_ref: np.ndarray,
-				obs: np.ndarray):
-		k_tanh_e = 5
-		k_tanh_sigma0 = 5
-		kk_ht = 0.25		# 1.2 米，补偿0.3
-		self.sigma_o = (de - kk_ht * d_ref) + self.k1 * e + self.gamma * np.fabs(e) ** self.alpha * np.tanh(k_tanh_e * e)
-		self.dot_sigma_o1 = np.fabs(self.sigma_o) ** self.beta * np.tanh(k_tanh_sigma0 * self.sigma_o)
-		self.sigma_o1 += self.dot_sigma_o1 * self.dt
-		self.so = self.sigma_o + self.lmd * self.sigma_o1
-		uo1 = dd_ref - self.k1 * (de - kk_ht * d_ref) \
-		      - self.gamma * self.alpha * np.fabs(e) ** (self.alpha - 1) * (de - kk_ht * d_ref) \
-			  - self.lmd * self.dot_sigma_o1
-		uo2 = -self.k2 * self.so - obs
-		self.ctrl = uo1 + uo2
+    def control(self,
+                e: np.ndarray,
+                de: np.ndarray,
+                dd_ref: np.ndarray,
+                d_ref: np.ndarray,
+                obs: np.ndarray):
+        k_tanh_e = 5
+        k_tanh_sigma0 = 5
+        kk_ht = -0.05		# 越小，响应越若
+        self.sigma_o = (de - kk_ht * d_ref) + self.k1 * e + self.gamma * np.fabs(e) ** self.alpha * np.tanh(k_tanh_e * e)
+        self.dot_sigma_o1 = np.fabs(self.sigma_o) ** self.beta * np.tanh(k_tanh_sigma0 * self.sigma_o)
+        self.sigma_o1 += self.dot_sigma_o1 * self.dt
+        self.so = self.sigma_o + self.lmd * self.sigma_o1
+        uo1 = dd_ref - self.k1 * (de - kk_ht * d_ref) \
+              - self.gamma * self.alpha * np.fabs(e) ** (self.alpha - 1) * (de - kk_ht * d_ref) \
+              - self.lmd * self.dot_sigma_o1
+        uo2 = -self.k2 * self.so - obs
+        self.ctrl = uo1 + uo2
 
 
 class data_collector:
