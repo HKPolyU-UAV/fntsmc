@@ -103,6 +103,7 @@ def thrust_2_throttle(thrust: float):
 
 
 def approaching(_t: float, ap_flag: bool, threshold: float):
+	ref_amplitude = np.array([0., 0., 0., 0.])
 	ref, _, _, _ = ref_uav(0., ref_amplitude, ref_period, ref_bias_a, ref_bias_phase)
 	pose.pose.position.x = ref[0]
 	pose.pose.position.y = ref[1]
@@ -218,7 +219,7 @@ if __name__ == "__main__":
 
 	'''generate reference command'''
 	# ref_amplitude = np.array([0., 0., 0., 0])  # xd yd zd psid 振幅
-	ref_amplitude = np.array([1.2, 1.2, 0.3, 0])  # xd yd zd psid 振幅
+	ref_amplitude = np.array([1.5, 1.5, 0.3, 0])  # xd yd zd psid 振幅
 	ref_period = np.array([6, 6, 10, 10])  # xd yd zd psid 周期
 	ref_bias_a = np.array([0, 0, 1.0, 0])  # xd yd zd psid 幅值偏移
 	ref_bias_phase = np.array([np.pi / 2, 0, 0, 0])  # xd yd zd psid 相位偏移
@@ -244,7 +245,7 @@ if __name__ == "__main__":
 			if ok:
 				print('OFFBOARD, start to initialize...')
 				uav_ros = UAV_ROS(m=0.797, g=9.8, kt=1e-3, dt=1 / frequency)
-				c_out = ctrl_out(k1=np.array([0.7, 0.7]),  # 越大，角度相应越猛烈
+				c_out = ctrl_out(k1=np.array([0.7, 0.7]),  # 越大，角度响应越猛烈
 								 k2=np.array([0.6, 0.6]),  # 
 								 k3=np.array([0.05, 0.05]),
 								 alpha=np.array([1.2, 1.2]),
@@ -290,7 +291,12 @@ if __name__ == "__main__":
 				print('time: ', t_now, data_record.index)
 
 			'''1. generate reference command and uncertainty'''
-			ref, dot_ref, dot2_ref, dot3_ref = ref_uav(t - t0,
+			rax = max(min(0.5 * t_now, 1.5), 0.0)
+			ray = max(min(0.5 * t_now, 1.5), 0.0)
+			raz = max(min(0.06 * t_now, 0.0), 0.0)
+			rapsi = max(min(0.5 * t_now, 0), 0.0)
+			ref_amplitude = np.array([rax, ray, ray, rapsi])
+			ref, dot_ref, dot2_ref, dot3_ref = ref_uav(t_now,
 													   ref_amplitude,
 													   ref_period,
 													   ref_bias_a,
@@ -342,6 +348,7 @@ if __name__ == "__main__":
 								kp=uav_ros.kt,
 								dz=uav_ros.vz,
 								dot2_zd=dot2_rhod,
+								dot_zd=dot_rhod,
 								e=ei,
 								de=dei,
 								delta_obs=delta_inner_obs)
@@ -407,12 +414,12 @@ if __name__ == "__main__":
 				data_record.package2file(path=os.getcwd() + '/src/acc_2024_ros/scripts/datasave/')
 				global_flag = 3
 		elif global_flag == 3:		# finish, back to offboard position
-			pose.pose.position.x = 1
+			pose.pose.position.x = 0
 			pose.pose.position.y = 0
 			pose.pose.position.z = 0.5
 			local_pos_pub.publish(pose)
 		else:
-			pose.pose.position.x = 1
+			pose.pose.position.x = 0
 			pose.pose.position.y = 0
 			pose.pose.position.z = 0.5
 			local_pos_pub.publish(pose)
